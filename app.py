@@ -17,17 +17,136 @@ st.title("📞 Call Log Analyzer & Activity Logger")
 # (Cleaned up session state for the new workflow)
 if 'extraction_schema' not in st.session_state:
     st.session_state.extraction_schema = [
-        {"name": "call_outcome", "prompt": "Assign an outcome. Choose from: Session Booked, Not Interested, Follow-up Required.", "type": "string"},
-        {"name": "call_summary", "prompt": "Provide a one-sentence summary of the call.", "type": "string"}
+        {
+            "name": "call_outcome", 
+            "prompt": "Analyze the transcript to determine the final outcome. You must select ONLY ONE of the following: Confirmed for Tomorrow’s Workshop, Confirmed for Sunday’s Workshop, Already Attended, Requested Recording, Declined Both, Wrong Number / Ineligible, Voicemail / No Answer.", 
+            "type": "string"
+        },
+        {
+            "name": "call_summary", 
+            "prompt": "Write a concise call summary, strictly under 120 words, for a human agent to review. The summary must include: 1. The reason they couldn’t attend. 2. What they were hoping to gain. 3. How Rohan responded. 4. The agreed next step.", 
+            "type": "string"
+        },
+        {
+            "name": "lead_stage", 
+            "prompt": "Based on the call transcript, classify the lead into ONLY ONE of the following stages: Appointment_Booked/Call_Scheduled (Customer explicitly agreed to a call with a Senior Counsellor), Call Again Later (Customer requested a callback or was busy), In Pipeline (Customer is hesitant but agreed to receive more info like a video or case study), Closed Not Interested (Customer explicitly stated they are not interested and to not call back), DNP (Do Not Pursue - Lead is invalid, a wrong number, or abusive), Promised To Pay (Only if the customer has explicitly agreed to make a payment, unlikely for this AI's role).", 
+            "type": "string"
+        },
+        {
+            "name": "customer_goal", 
+            "prompt": "Identify and extract the participant’s primary goal or motivation for registering for the workshop. List them as a concise, comma-separated string. Examples: Learn AI tools for productivity, Career growth, Explore AI basics, Upskill for future jobs.", 
+            "type": "string"
+        },
+        {
+            "name": "objections", 
+            "prompt": "Identify all objections or concerns raised by the customer during the call. List them as a concise, comma-separated string. Examples: Financial cost, Time commitment, Relevance to my field, Already have a similar course, Needs to discuss with family.", 
+            "type": "string"
+        },
+        {
+            "name": "next_step", 
+            "prompt": "Summarize the single clear next action agreed upon at the end of the call in one short sentence. Examples: Customer will join live on Sept 21 at 11 AM, Sending workshop recording via WhatsApp, No further follow-up needed.", 
+            "type": "string"
+        },
+        {
+            "name": "rapport_hooks", 
+            "prompt": "Extract any personal or professional details mentioned that a human agent could use to build rapport on future outreach. List them as a comma-separated string. Examples: preparing for MBA entrance, works in IT, based in Bangalore, new parent.", 
+            "type": "string"
+        },
+        {
+            "name": "call_sentiment", 
+            "prompt": "Analyze the overall tone and mood of the participant throughout the call. Classify as Positive (engaged, appreciative), Neutral (polite but reserved), or Negative (irritated, dismissive). Select only one.", 
+            "type": "string"
+        },
+        {
+            "name": "ai_performance_score", 
+            "prompt": "Rate the AI agent’s performance on a scale of 1 to 10 based on the following rubric: Adherence to Conversation Flow (3 pts), Tone & Empathy (3 pts), Handling Barriers Smoothly (2 pts), Securing a Clear Next Step (2 pts). Provide only the final numeric score.", 
+            "type": "integer" # Note: I've set this to integer as it makes sense for a score.
+        },
+        {
+            "name": "talk_to_listen_ratio", 
+            "prompt": "Analyze the call audio and calculate Rohan’s speaking time versus the participant’s. Express this as a decimal (e.g., 0.4 means Rohan spoke for 40% of the call).", 
+            "type": "float" # Note: I've set this to float for the decimal.
+        }
     ]
+
 if 'activity_event_code' not in st.session_state:
-    st.session_state.activity_event_code = 227 # Default example code
+    st.session_state.activity_event_code = 227 # Replace with your actual code if different
+
 if 'activity_json_template' not in st.session_state:
-    # A helpful default template to guide the user
+    # Pre-configured JSON template based on your provided schema
     st.session_state.activity_json_template = json.dumps([
-        {"SchemaName": "mx_Call_Outcome", "Value": "{{call_outcome}}"},
-        {"SchemaName": "mx_Call_Summary", "Value": "{{call_summary}}"},
-        {"SchemaName": "mx_Recording_URL", "Value": "{{recording_url}}"}
+      {
+        "SchemaName": "mx_Custom_2",
+        "Value": "{{call_outcome}}"
+      },
+      {
+        "SchemaName": "mx_Custom_4",
+        "Value": "",
+        "Fields": [
+          {
+            "SchemaName": "mx_CustomObject_121",
+            "Value": "{{call_summary}}"
+          }
+        ]
+      },
+      {
+        "SchemaName": "mx_Custom_3",
+        "Value": "{{recordingUrl}}" # Placeholder from original CSV
+      },
+      {
+        "SchemaName": "mx_Custom_1",
+        "Value": "",
+        "Fields": [
+          {
+            "SchemaName": "mx_CustomObject_121",
+            "Value": "{{transcript}}" # Placeholder from original CSV
+          }
+        ]
+      },
+      {
+        "SchemaName": "Status",
+        "Value": "Active" # Hardcoded value
+      },
+      {
+        "SchemaName": "mx_Custom_5",
+        "Value": "{{lead_stage}}"
+      },
+      {
+        "SchemaName": "mx_Custom_6",
+        "Value": "{{customer_goal}}"
+      },
+      {
+        "SchemaName": "mx_Custom_7",
+        "Value": "{{objections}}"
+      },
+      {
+        "SchemaName": "mx_Custom_8",
+        "Value": "{{next_step}}"
+      },
+      {
+        "SchemaName": "mx_Custom_9",
+        "Value": "{{rapport_hooks}}"
+      },
+      {
+        "SchemaName": "mx_Custom_10",
+        "Value": "{{call_sentiment}}"
+      },
+      {
+        "SchemaName": "mx_Custom_11",
+        "Value": "{{ai_performance_score}}"
+      },
+      {
+        "SchemaName": "mx_Custom_12",
+        "Value": "{{talk_to_listen_ratio}}"
+      },
+      {
+        "SchemaName": "mx_Custom_13",
+        "Value": "Answered" # Hardcoded value
+      },
+      {
+        "SchemaName": "mx_Custom_14",
+        "Value": "Tool Test" # Hardcoded value
+      }
     ], indent=2)
 
 if 'processing_complete' not in st.session_state:

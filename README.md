@@ -91,3 +91,81 @@ The next major version will pivot to a more robust, event-based approach by logg
 4.  **[Future Consideration] Implement Smart Lead State Updates:**
     *   After the activity-logging system is in place, we may re-introduce the `Lead.Update` functionality as an optional, advanced feature.
     *   This would involve creating a rules engine or a stage hierarchy to prevent the system from overwriting a high-value lead stage (e.g., "Promised to Pay") with a lower-value one (e.g., "Call Back Later"). This would require an additional API call to first *read* the current lead stage before deciding whether to *write* a new one.
+
+    **JSON Schema Sample (Activity Update):**
+    ```json
+    [
+    {
+        "SchemaName": "mx_Custom_2",
+        "Value": "{{call_outcome}}"
+    },
+    {
+        "SchemaName": "mx_Custom_4",
+        "Value": "",
+        "Fields": [
+        {
+            "SchemaName": "mx_CustomObject_121",
+            "Value": "{{call_summary}}"
+        }
+        ]
+    },
+    {
+        "SchemaName": "mx_Custom_3",
+        "Value": "{{recordingUrl}}"
+    },
+    {
+        "SchemaName": "mx_Custom_1",
+        "Value": "",
+        "Fields": [
+        {
+            "SchemaName": "mx_CustomObject_121",
+            "Value": "{{transcript}}"
+        }
+        ]
+    },
+    {
+        "SchemaName": "Status",
+        "Value": "Active"
+    },
+    {
+        "SchemaName": "mx_Custom_5",
+        "Value": "{{lead_stage}}"
+    },
+    {
+        "SchemaName": "mx_Custom_6",
+        "Value": "{{customer_goal}}"
+    },
+    {
+        "SchemaName": "mx_Custom_7",
+        "Value": "{{objections}}"
+    },
+    {
+        "SchemaName": "mx_Custom_8",
+        "Value": "{{next_step}}"
+    },
+    {
+        "SchemaName": "mx_Custom_9",
+        "Value": "{{rapport_hooks}}"
+    },
+    {
+        "SchemaName": "mx_Custom_10",
+        "Value": "{{call_sentiment}}"
+    },
+    {
+        "SchemaName": "mx_Custom_11",
+        "Value": "{{ai_performance_score}}"
+    },
+    {
+        "SchemaName": "mx_Custom_12",
+        "Value": "{{talk_to_listen_ratio}}"
+    },
+    {
+        "SchemaName": "mx_Custom_13",
+        "Value": "Answered"
+    },
+    {
+        "SchemaName": "mx_Custom_14",
+        "Value": "Tool Test"
+    },
+    ]
+    ```
