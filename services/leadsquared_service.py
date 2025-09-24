@@ -5,6 +5,7 @@ import requests
 import time
 from dotenv import load_dotenv
 from datetime import datetime
+import json 
 
 # Load environment variables
 load_dotenv()
@@ -75,17 +76,17 @@ def post_activity_by_phone(phone_number: str, activity_payload: dict):
         tuple: A tuple containing (bool, str) for success status and a message.
     """
     # Step 1: Get the Lead ID
+    print(f"\n--- [DEBUG] Attempting to find lead with phone: {phone_number} ---")
     lead_id, message = get_lead_by_phone(phone_number)
     
     if not lead_id:
+        print(f"[DEBUG] Lead lookup failed for {phone_number}. Reason: {message}")
         return False, message # Return the message from the lookup (e.g., "No lead found")
+    
+    print(f"[DEBUG] Found ProspectID: {lead_id} for phone {phone_number}")
         
     # Step 2: Prepare the final payload
-    # Add the retrieved lead ID to the payload
     activity_payload["RelatedProspectId"] = lead_id
-    
-    # Add the current timestamp as per user request
-    activity_payload["ActivityDateTime"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     url = f"{LEADSQUARED_HOST}/v2/ProspectActivity.svc/Create"
     params = {
@@ -93,14 +94,23 @@ def post_activity_by_phone(phone_number: str, activity_payload: dict):
         'secretKey': LEADSQUARED_SECRET_KEY
     }
 
+    # --- ADDED FOR DEBUGGING ---
+    print(f"[DEBUG] Preparing to POST activity for ProspectID {lead_id}.")
+    print(f"[DEBUG] Full JSON payload being sent:\n{json.dumps(activity_payload, indent=2)}")
+    # --- END DEBUGGING ADDITION ---
+
     time.sleep(0.2)
 
     try:
         response = requests.post(url, params=params, json=activity_payload)
         
+        # --- ADDED FOR DEBUGGING ---
+        print(f"[DEBUG] LSQ Response Status Code: {response.status_code}")
+        print(f"[DEBUG] LSQ Response Body:\n{response.text}")
+        # --- END DEBUGGING ADDITION ---
+        
         if response.status_code != 200:
             message = f"Error: Received HTTP {response.status_code} for lead {lead_id}. Response: {response.text}"
-            print(message)
             return False, message
 
         response_data = response.json()
@@ -109,13 +119,12 @@ def post_activity_by_phone(phone_number: str, activity_payload: dict):
         else:
             error_message = response_data.get("ExceptionMessage", "Unknown API error")
             message = f"Failed to post activity for phone {phone_number}. Reason: {error_message}"
-            print(message)
             return False, message
 
     except requests.exceptions.RequestException as e:
         message = f"A network error occurred while posting activity for phone {phone_number}: {e}"
-        print(message)
         return False, message
+
 
 
 # This block allows us to test the new workflow directly

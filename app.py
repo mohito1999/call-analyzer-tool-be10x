@@ -19,7 +19,7 @@ if 'extraction_schema' not in st.session_state:
     st.session_state.extraction_schema = [
         {
             "name": "call_outcome", 
-            "prompt": "Analyze the transcript to determine the final outcome. You must select ONLY ONE of the following: Confirmed for Tomorrow’s Workshop, Confirmed for Sunday’s Workshop, Already Attended, Requested Recording, Declined Both, Wrong Number / Ineligible, Voicemail / No Answer.", 
+            "prompt": "Analyze the transcript to determine the final outcome. You must select ONLY ONE of the following: Confirmed for Tomorrow’s Workshop, Confirmed for Sunday’s Workshop, Already Attended, Requested Recording, Declined Both, Wrong Number / Ineligible, Voicemail / No Answer. Note, if you encounter someone who just doesn't respond or you encounter a voicemail message, make sure you label it as Voicemail / No Answer", 
             "type": "string"
         },
         {
@@ -70,7 +70,7 @@ if 'extraction_schema' not in st.session_state:
     ]
 
 if 'activity_event_code' not in st.session_state:
-    st.session_state.activity_event_code = 227 # Replace with your actual code if different
+    st.session_state.activity_event_code = 226 # Replace with your actual code if different
 
 if 'activity_json_template' not in st.session_state:
     # Pre-configured JSON template based on your provided schema
@@ -164,8 +164,8 @@ if not st.session_state.get('processing_complete', False):
         uploaded_file = st.file_uploader("Upload a CSV file.", type=['csv'])
         
         st.subheader("Specify Key Columns")
-        phone_column = st.text_input("Column name for Phone Number", st.session_state.get("phone_column", "PhoneNumber"))
-        transcript_column = st.text_input("Column name for Transcript", st.session_state.get("transcript_column", "Transcript"))
+        phone_column = st.text_input("Column name for Phone Number", st.session_state.get("phone_column", "phoneNumber"))
+        transcript_column = st.text_input("Column name for Transcript", st.session_state.get("transcript_column", "transcript"))
         
         if uploaded_file:
             st.session_state.uploaded_file = uploaded_file
