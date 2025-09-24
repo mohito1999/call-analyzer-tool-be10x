@@ -4,6 +4,7 @@ import os
 import requests
 import time
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -15,14 +16,9 @@ LEADSQUARED_HOST = os.getenv("LEADSQUARED_HOST")
 def get_lead_by_phone(phone_number: str):
     """
     Retrieves a lead's ProspectID from Leadsquared using their phone number.
-
-    Args:
-        phone_number (str): The phone number of the lead to search for.
-
-    Returns:
-        tuple: A tuple containing (str, str) for (lead_id, message),
-               or (None, str) if not found or an error occurs.
+    (This function remains unchanged as it's still needed)
     """
+    # ... (code for this function is unchanged, but included for completeness)
     if not all([LEADSQUARED_ACCESS_KEY, LEADSQUARED_SECRET_KEY, LEADSQUARED_HOST]):
         message = "ERROR: Leadsquared credentials are not fully configured."
         print(message)
@@ -35,21 +31,18 @@ def get_lead_by_phone(phone_number: str):
         'phone': phone_number
     }
     
-    # Implement a simple rate limit
     time.sleep(0.2)
     
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status() # Raise an exception for bad status codes
+        response.raise_for_status()
 
         response_data = response.json()
         
-        # API returns an empty list if no lead is found
         if not response_data:
             message = f"No lead found with phone number: {phone_number}"
             return None, message
         
-        # The API returns a list, we'll take the first result
         lead_data = response_data[0]
         lead_id = lead_data.get("ProspectID")
 
@@ -59,30 +52,51 @@ def get_lead_by_phone(phone_number: str):
             return None, "Lead found, but ProspectID was missing in the response."
 
     except requests.exceptions.RequestException as e:
-        message = f"A network error occurred while fetching lead by phone {phone_number}: {e}"
+        message = f"Network error while fetching lead by phone {phone_number}: {e}"
         print(message)
         return None, message
     except Exception as e:
-        message = f"An unexpected error occurred while fetching lead by phone {phone_number}: {e}"
+        message = f"Unexpected error while fetching lead by phone {phone_number}: {e}"
         print(message)
         return None, message
 
-def _update_lead_by_id(lead_id: str, payload: list):
+
+def post_activity_by_phone(phone_number: str, activity_payload: dict):
     """
-    Internal function to update an existing lead in Leadsquared using its ID.
-    (This is the original update_lead function, renamed to be 'private')
+    Orchestrator function: Fetches a lead by phone number and then posts a custom activity.
+    This is the new primary function for interacting with Leadsquared.
+    
+    Args:
+        phone_number (str): The phone number to look up the lead.
+        activity_payload (dict): The dictionary representing the activity JSON body.
+                                 This function will add the 'RelatedProspectId'.
+
+    Returns:
+        tuple: A tuple containing (bool, str) for success status and a message.
     """
-    url = f"{LEADSQUARED_HOST}/v2/LeadManagement.svc/Lead.Update"
+    # Step 1: Get the Lead ID
+    lead_id, message = get_lead_by_phone(phone_number)
+    
+    if not lead_id:
+        return False, message # Return the message from the lookup (e.g., "No lead found")
+        
+    # Step 2: Prepare the final payload
+    # Add the retrieved lead ID to the payload
+    activity_payload["RelatedProspectId"] = lead_id
+    
+    # Add the current timestamp as per user request
+    activity_payload["ActivityDateTime"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    url = f"{LEADSQUARED_HOST}/v2/ProspectActivity.svc/Create"
     params = {
         'accessKey': LEADSQUARED_ACCESS_KEY,
-        'secretKey': LEADSQUARED_SECRET_KEY,
-        'leadId': lead_id
+        'secretKey': LEADSQUARED_SECRET_KEY
     }
-    
+
     time.sleep(0.2)
 
     try:
-        response = requests.post(url, params=params, json=payload)
+        response = requests.post(url, params=params, json=activity_payload)
         
         if response.status_code != 200:
             message = f"Error: Received HTTP {response.status_code} for lead {lead_id}. Response: {response.text}"
@@ -91,66 +105,46 @@ def _update_lead_by_id(lead_id: str, payload: list):
 
         response_data = response.json()
         if response_data.get("Status") == "Success":
-            return True, f"Successfully updated lead {lead_id}."
+            return True, f"Successfully posted activity on lead with phone {phone_number}."
         else:
-            error_message = response_data.get("ExceptionMessage", "Unknown error")
-            message = f"Failed to update lead {lead_id}. Reason: {error_message}"
+            error_message = response_data.get("ExceptionMessage", "Unknown API error")
+            message = f"Failed to post activity for phone {phone_number}. Reason: {error_message}"
             print(message)
             return False, message
 
     except requests.exceptions.RequestException as e:
-        message = f"A network error occurred while updating lead {lead_id}: {e}"
+        message = f"A network error occurred while posting activity for phone {phone_number}: {e}"
         print(message)
         return False, message
 
-def update_lead_by_phone(phone_number: str, payload: list):
-    """
-    Orchestrator function: Fetches a lead by phone number and then updates it.
-    This is the main function we will call from our app.
-    
-    Args:
-        phone_number (str): The phone number to look up the lead.
-        payload (list): The data to update for the lead.
 
-    Returns:
-        tuple: A tuple containing (bool, str) for success status and a message.
-    """
-    # Step 1: Get the Lead ID
-    lead_id, message = get_lead_by_phone(phone_number)
-    
-    # Step 2: If we didn't find an ID, stop and return the message from the lookup
-    if not lead_id:
-        return False, message
-        
-    # Step 3: If we found an ID, proceed with the update
-    return _update_lead_by_id(lead_id, payload)
-
-
-# This block allows us to test the full workflow directly
+# This block allows us to test the new workflow directly
 if __name__ == "__main__":
-    print("--- Running leadsquared_service.py test (full workflow) ---")
+    print("--- Running leadsquared_service.py activity test ---")
     
-    # --- IMPORTANT ---
-    # To run this test, you MUST provide a REAL, VALID Phone Number from your
-    # Leadsquared account that exists.
-    test_phone_number = "9752887393" # e.g., "9901111111"
+    test_phone_number = "YOUR_REAL_PHONE_NUMBER_HERE"
 
     if test_phone_number == "YOUR_REAL_PHONE_NUMBER_HERE":
-        print("\nSKIPPING TEST: Please edit leadsquared_service.py and set a valid test_phone_number.")
+        print("\nSKIPPING TEST: Please edit this file and set a valid test_phone_number.")
     else:
-        test_payload = [
-            {
-                "Attribute": "ProspectStage",
-                "Value": "In Pipeline"
-            },
-            {
-                "Attribute": "mx_Last_Call_Notes",
-                "Value": "API test successful"
-            }
-        ]
+        # This is the payload our app.py will build.
+        # It needs the ActivityEvent code and the Fields array.
+        test_activity_payload = {
+            "ActivityEvent": 227, # <-- IMPORTANT: Use a REAL ActivityEvent code from your LSQ account
+            "Fields": [
+                {
+                    "SchemaName": "mx_Custom_1", # Use a REAL SchemaName
+                    "Value": "Test Outcome from Script"
+                },
+                {
+                    "SchemaName": "mx_Custom_2", # Use a REAL SchemaName
+                    "Value": "This is a test note generated by the service test script."
+                }
+            ]
+        }
 
-        print(f"\nAttempting to find and update lead with phone: {test_phone_number}")
-        success, message = update_lead_by_phone(test_phone_number, test_payload)
+        print(f"\nAttempting to post activity on lead with phone: {test_phone_number}")
+        success, message = post_activity_by_phone(test_phone_number, test_activity_payload)
 
         print("\n--- Test Result ---")
         print(f"Success: {success}")
